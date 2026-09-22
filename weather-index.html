@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Isobar — Current weather lookup</title>
+<meta name="description" content="Isobar looks up current weather conditions for any city using the OpenWeatherMap API — temperature, humidity, condition, and when the reading was taken.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #EEF2F1;
+    --surface: #FFFFFF;
+    --ink: #1B2430;
+    --ink-soft: #5B6672;
+    --ink-faint: #8A9299;
+    --accent: #2C6E8C;
+    --accent-dark: #1F4F65;
+    --warm: #E8A33D;
+    --danger: #B4472D;
+    --line: #D7DEDD;
+    --radius: 3px;
+    --display: "Space Grotesk", -apple-system, sans-serif;
+    --body: "IBM Plex Sans", -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", "Courier New", monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--body);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    padding-top:env(safe-area-inset-top, 0px);
+    padding-bottom:env(safe-area-inset-bottom, 0px);
+  }
+  *:focus-visible{outline:2px solid var(--accent-dark); outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+  }
+
+  .wrap{
+    max-width:720px;
+    margin:0 auto;
+    padding:0 24px;
+  }
+
+  header{
+    padding:48px 0 28px;
+    border-bottom:1px solid var(--line);
+  }
+  .wordmark{
+    font-family:var(--display);
+    font-size:26px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+    margin:0;
+  }
+  .wordmark span{color:var(--accent);}
+  header p{
+    margin:8px 0 0;
+    color:var(--ink-soft);
+    font-size:15px;
+    max-width:46ch;
+  }
+
+  /* --- API key setup --- */
+  .key-panel{
+    margin-top:40px;
+    padding-top:24px;
+  }
+  details.key-setup{
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:var(--surface);
+  }
+  details.key-setup summary{
+    cursor:pointer;
+    padding:14px 18px;
+    font-size:14px;
+    font-weight:500;
+    color:var(--ink-soft);
+    list-style:none;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  details.key-setup summary::-webkit-details-marker{display:none;}
+  details.key-setup summary .status-dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--danger);
+    flex-shrink:0;
+  }
+  details.key-setup summary .status-dot.set{background:var(--accent);}
+  details.key-setup .key-body{
+    padding:0 18px 18px;
+    border-top:1px solid var(--line);
+    padding-top:16px;
+  }
+  details.key-setup .key-body p{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin:0 0 12px;
+  }
+  details.key-setup .key-body a{color:var(--accent-dark);}
+  .key-row{
+    display:flex;
+    gap:10px;
+  }
+  .key-row input{
+    flex:1;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    font-family:var(--mono);
+    font-size:13px;
+    background:var(--bg);
+    color:var(--ink);
+  }
+  .key-row button{
+    padding:10px 16px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:var(--bg);
+    border-radius:var(--radius);
+    font-family:var(--body);
+    font-size:13.5px;
+    font-weight:500;
+    cursor:pointer;
+  }
+  .key-row button:hover{background:var(--accent-dark); border-color:var(--accent-dark);}
+
+  /* --- search --- */
+  .search-row{
+    margin-top:20px;
+    display:flex;
+    gap:10px;
+  }
+  .search-row input{
+    flex:1;
+    padding:14px 16px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    font-family:var(--body);
+    font-size:16px;
+    background:var(--surface);
+    color:var(--ink);
+  }
+  .search-row input::placeholder{color:var(--ink-faint);}
+  .search-row button{
+    padding:14px 22px;
+    border:none;
+    background:var(--accent);
+    color:#fff;
+    border-radius:var(--radius);
+    font-family:var(--body);
+    font-size:15px;
+    font-weight:500;
+    cursor:pointer;
+    transition:background .15s ease;
+    white-space:nowrap;
+  }
+  .search-row button:hover{background:var(--accent-dark);}
+  .search-row button:disabled{background:var(--ink-faint); cursor:not-allowed;}
+
+  /* --- states --- */
+  .state-area{
+    margin-top:28px;
+    min-height:40px;
+  }
+  .msg{
+    padding:16px 18px;
+    border-radius:var(--radius);
+    font-size:14.5px;
+    border:1px solid var(--line);
+  }
+  .msg.error{
+    border-color:#E4C3B8;
+    background:#FBF1EC;
+    color:var(--danger);
+  }
+  .msg.loading{
+    color:var(--ink-soft);
+    font-family:var(--mono);
+    font-size:13.5px;
+  }
+
+  /* --- result panel --- */
+  .panel{
+    margin-top:28px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:var(--surface);
+    overflow:hidden;
+  }
+  .panel-head{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:20px;
+    padding:32px 32px 24px;
+  }
+  .panel-head .place h2{
+    font-family:var(--display);
+    font-size:24px;
+    font-weight:600;
+    margin:0 0 4px;
+    letter-spacing:-0.01em;
+  }
+  .panel-head .place .cond{
+    font-size:14.5px;
+    color:var(--ink-soft);
+    text-transform:capitalize;
+  }
+  .icon-slot{
+    width:56px;
+    height:56px;
+    color:var(--accent);
+    flex-shrink:0;
+  }
+  .icon-slot svg{width:100%; height:100%;}
+
+  .temp-row{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    padding:0 32px 28px;
+    border-bottom:1px solid var(--line);
+  }
+  .temp-main{
+    font-family:var(--mono);
+    font-size:64px;
+    font-weight:500;
+    line-height:1;
+    color:var(--ink);
+  }
+  .temp-unit{
+    font-family:var(--mono);
+    font-size:22px;
+    color:var(--ink-soft);
+  }
+  .temp-feels{
+    font-size:14px;
+    color:var(--ink-soft);
+    margin-left:auto;
+    align-self:center;
+  }
+
+  .data-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+  }
+  .data-cell{
+    padding:20px 24px;
+    border-right:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+  }
+  .data-cell:nth-child(3n){border-right:none;}
+  .data-cell .k{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  .data-cell .v{
+    font-family:var(--mono);
+    font-size:19px;
+    color:var(--ink);
+  }
+
+  .updated-row{
+    padding:16px 32px;
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
+  footer{
+    margin-top:64px;
+    padding:24px 0 48px;
+    border-top:1px solid var(--line);
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  footer a{color:var(--accent-dark);}
+
+  @media (max-width: 560px){
+    .wrap{padding:0 18px;}
+    header{padding:36px 0 22px;}
+    .search-row{flex-direction:column;}
+    .data-grid{grid-template-columns:repeat(2, 1fr);}
+    .data-cell:nth-child(3n){border-right:1px solid var(--line);}
+    .data-cell:nth-child(2n){border-right:none;}
+    .panel-head{flex-direction:row;}
+    .temp-main{font-size:52px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1 class="wordmark">Iso<span>bar</span></h1>
+    <p>Current conditions for any city, pulled live from OpenWeatherMap. Type a city name to get its temperature, humidity, and condition as of the last recorded reading.</p>
+  </header>
+
+  <div class="key-panel">
+    <details class="key-setup" id="keyDetails">
+      <summary>
+        <span style="display:flex; align-items:center; gap:10px;">
+          <span class="status-dot" id="keyDot"></span>
+          API key setup
+        </span>
+        <span id="keySummaryText">not set</span>
+      </summary>
+      <div class="key-body">
+        <p>Isobar calls the OpenWeatherMap API directly from your browser, so it needs your own free API key. Get one at <a href="https://openweathermap.org/api" target="_blank" rel="noopener">openweathermap.org/api</a> (the free tier is enough for this app), then paste it below. It's saved only in this browser via localStorage.</p>
+        <div class="key-row">
+          <input type="text" id="apiKeyInput" placeholder="Paste your OpenWeatherMap API key" autocomplete="off" spellcheck="false">
+          <button type="button" id="saveKeyBtn">Save</button>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <form class="search-row" id="searchForm">
+    <label for="cityInput" class="sr-only" style="position:absolute; left:-9999px;">City name</label>
+    <input type="text" id="cityInput" placeholder="Try Faisalabad, Lahore, Tokyo…" autocomplete="off">
+    <button type="submit" id="searchBtn">Get weather</button>
+  </form>
+
+  <div class="state-area" id="stateArea"></div>
+
+  <div class="panel" id="resultPanel" style="display:none;">
+    <div class="panel-head">
+      <div class="place">
+        <h2 id="placeName">—</h2>
+        <p class="cond" id="placeCondition">—</p>
+      </div>
+      <div class="icon-slot" id="iconSlot"></div>
+    </div>
+    <div class="temp-row">
+      <span class="temp-main" id="tempMain">—</span>
+      <span class="temp-unit">°C</span>
+      <span class="temp-feels" id="tempFeels"></span>
+    </div>
+    <div class="data-grid">
+      <div class="data-cell">
+        <div class="k">Humidity</div>
+        <div class="v" id="dataHumidity">—</div>
+      </div>
+      <div class="data-cell">
+        <div class="k">Wind speed</div>
+        <div class="v" id="dataWind">—</div>
+      </div>
+      <div class="data-cell">
+        <div class="k">Pressure</div>
+        <div class="v" id="dataPressure">—</div>
+      </div>
+    </div>
+    <div class="updated-row">
+      <span id="lastUpdated">Last data update: —</span>
+      <span id="coordText"></span>
+    </div>
+  </div>
+
+  <footer>
+    Weather data provided by <a href="https://openweathermap.org/" target="_blank" rel="noopener">OpenWeatherMap</a>. This app is not affiliated with or endorsed by OpenWeatherMap.
+  </footer>
+</div>
+
+<script>
+(function(){
+  var STORAGE_KEY = 'isobar_owm_api_key';
+
+  var keyDetails = document.getElementById('keyDetails');
+  var keyDot = document.getElementById('keyDot');
+  var keySummaryText = document.getElementById('keySummaryText');
+  var apiKeyInput = document.getElementById('apiKeyInput');
+  var saveKeyBtn = document.getElementById('saveKeyBtn');
+
+  var searchForm = document.getElementById('searchForm');
+  var cityInput = document.getElementById('cityInput');
+  var searchBtn = document.getElementById('searchBtn');
+  var stateArea = document.getElementById('stateArea');
+  var resultPanel = document.getElementById('resultPanel');
+
+  var placeName = document.getElementById('placeName');
+  var placeCondition = document.getElementById('placeCondition');
+  var iconSlot = document.getElementById('iconSlot');
+  var tempMain = document.getElementById('tempMain');
+  var tempFeels = document.getElementById('tempFeels');
+  var dataHumidity = document.getElementById('dataHumidity');
+  var dataWind = document.getElementById('dataWind');
+  var dataPressure = document.getElementById('dataPressure');
+  var lastUpdated = document.getElementById('lastUpdated');
+  var coordText = document.getElementById('coordText');
+
+  function getKey(){
+    try{ return localStorage.getItem(STORAGE_KEY) || ''; }
+    catch(e){ return ''; }
+  }
+  function setKey(k){
+    try{ localStorage.setItem(STORAGE_KEY, k); }catch(e){}
+  }
+  function refreshKeyStatus(){
+    var k = getKey();
+    if (k){
+      keyDot.classList.add('set');
+      keySummaryText.textContent = 'saved';
+      apiKeyInput.value = k;
+    } else {
+      keyDot.classList.remove('set');
+      keySummaryText.textContent = 'not set';
+      keyDetails.open = true;
+    }
+  }
+  saveKeyBtn.addEventListener('click', function(){
+    var v = apiKeyInput.value.trim();
+    if (v){
+      setKey(v);
+      refreshKeyStatus();
+      keyDetails.open = false;
+      showMessage('API key saved. Search for a city below.', 'loading');
+      setTimeout(function(){ stateArea.innerHTML=''; }, 2500);
+    }
+  });
+  refreshKeyStatus();
+
+  // ---- icon set: hand-built SVGs mapped from OpenWeatherMap "main" field ----
+  var ICONS = {
+    Clear: '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="13" fill="currentColor"/><g stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="32" y1="4" x2="32" y2="12"/><line x1="32" y1="52" x2="32" y2="60"/><line x1="4" y1="32" x2="12" y2="32"/><line x1="52" y1="32" x2="60" y2="32"/><line x1="12.3" y1="12.3" x2="18" y2="18"/><line x1="46" y1="46" x2="51.7" y2="51.7"/><line x1="51.7" y1="12.3" x2="46" y2="18"/><line x1="18" y1="46" x2="12.3" y2="51.7"/></g></svg>',
+    Clouds: '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 44a10 10 0 1 1 2.4-19.7A13 13 0 0 1 47 30a9 9 0 0 1-2 17.9H20z" fill="currentColor"/></svg>',
+    PartlyCloud: '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="22" r="9" fill="currentColor" opacity="0.55"/><path d="M24 46a10 10 0 1 1 2.4-19.7A13 13 0 0 1 51 32a9 9 0 0 1-2 17.9H24z" fill="currentColor"/></svg>',
+    Rain: '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 34a10 10 0 1 1 2.4-19.7A13 13 0 0 1 45 20a9 9 0 0 1-2 17.9H18z" fill="currentColor"/><g stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="22" y1="44" x2="19" y2="54"/><line x1="34" y1="44" x2="31" y2="54"/><line x1="46" y1="44" x2="43" y2="54"/></g></svg>',
+    Drizzle: '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 32a10 10 0 1 1 2.4-19.7A13 13 0 0 1 45 18a9 9 0 0 1-2 17.9H18z" fill="currentColor"/><g stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.85"><line x1="22" y1="42" x2="20" y2="49"/><line x1="30" y1="44" x2="28" y2="51"/><line x1="38" y1="42" x2="36" y2="49"/><line x1="46" y1="44" x2="44" y2="51"/></g></svg>',
+    Thunderstorm: '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 32a10 10 0 1 1 2.4-19.7A13 13 0 0 1 45 18a9 9 0 0 1-2 17.9H18z" fill="currentColor"/><path d="M33 40l-8 12h7l-4 10 13-15h-8l5-7z" fill="var(--warm)" stroke="var(--warm)" stroke-width="1"/></svg>',
+    Snow: '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 30a10 10 0 1 1 2.4-19.7A13 13 0 0 1 45 16a9 9 0 0 1-2 17.9H18z" fill="currentColor" opacity="0.85"/><g stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="24" y1="44" x2="24" y2="56"/><line x1="18.5" y1="47" x2="29.5" y2="53"/><line x1="29.5" y1="47" x2="18.5" y2="53"/><line x1="42" y1="44" x2="42" y2="56"/><line x1="36.5" y1="47" x2="47.5" y2="53"/><line x1="47.5" y1="47" x2="36.5" y2="53"/></g></svg>',
+    Mist: '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><g stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><line x1="10" y1="24" x2="54" y2="24"/><line x1="16" y1="34" x2="48" y2="34"/><line x1="10" y1="44" x2="54" y2="44"/></g></svg>',
+    Default: '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 44a10 10 0 1 1 2.4-19.7A13 13 0 0 1 47 30a9 9 0 0 1-2 17.9H20z" fill="currentColor"/></svg>'
+  };
+  function iconFor(main, iconCode){
+    if (main === 'Clear') return ICONS.Clear;
+    if (main === 'Clouds'){
+      // few vs broken clouds -> partly vs full
+      if (iconCode === '02d' || iconCode === '02n') return ICONS.PartlyCloud;
+      return ICONS.Clouds;
+    }
+    if (main === 'Rain') return ICONS.Rain;
+    if (main === 'Drizzle') return ICONS.Drizzle;
+    if (main === 'Thunderstorm') return ICONS.Thunderstorm;
+    if (main === 'Snow') return ICONS.Snow;
+    if (['Mist','Fog','Haze','Smoke','Dust','Sand','Ash'].indexOf(main) !== -1) return ICONS.Mist;
+    return ICONS.Default;
+  }
+
+  function showMessage(text, kind){
+    stateArea.innerHTML = '<div class="msg ' + kind + '">' + text + '</div>';
+  }
+  function clearMessage(){
+    stateArea.innerHTML = '';
+  }
+
+  function formatTime(unixSeconds){
+    var d = new Date(unixSeconds * 1000);
+    return d.toLocaleString(undefined, { weekday:'short', hour:'2-digit', minute:'2-digit', day:'numeric', month:'short' });
+  }
+
+  async function fetchWeather(city){
+    var key = getKey();
+    if (!key){
+      showMessage('Add your OpenWeatherMap API key above before searching.', 'error');
+      keyDetails.open = true;
+      return;
+    }
+
+    resultPanel.style.display = 'none';
+    showMessage('Looking up ' + city + ' …', 'loading');
+    searchBtn.disabled = true;
+
+    var url = 'https://api.openweathermap.org/data/2.5/weather?q=' + encodeURIComponent(city) + '&units=metric&appid=' + encodeURIComponent(key);
+
+    try {
+      var res = await fetch(url);
+      var data = await res.json();
+
+      if (!res.ok){
+        if (res.status === 404){
+          showMessage('No city found matching "' + city + '". Check the spelling, or try adding a country code (e.g. "Multan, PK").', 'error');
+        } else if (res.status === 401){
+          showMessage('That API key was rejected. Double-check it was copied correctly, and note new keys can take a few minutes to activate.', 'error');
+        } else {
+          showMessage('Something went wrong fetching that city (' + (data.message || res.status) + '). Try again in a moment.', 'error');
+        }
+        return;
+      }
+
+      clearMessage();
+      renderResult(data);
+
+    } catch (err){
+      showMessage('Could not reach the weather service. Check your internet connection and try again.', 'error');
+    } finally {
+      searchBtn.disabled = false;
+    }
+  }
+
+  function renderResult(data){
+    var weather = (data.weather && data.weather[0]) || {};
+    placeName.textContent = data.name + (data.sys && data.sys.country ? ', ' + data.sys.country : '');
+    placeCondition.textContent = weather.description || '—';
+    iconSlot.innerHTML = iconFor(weather.main, weather.icon);
+
+    tempMain.textContent = Math.round(data.main.temp);
+    tempFeels.textContent = 'Feels like ' + Math.round(data.main.feels_like) + '°C';
+
+    dataHumidity.textContent = data.main.humidity + '%';
+    dataWind.textContent = data.wind && typeof data.wind.speed === 'number' ? data.wind.speed + ' m/s' : '—';
+    dataPressure.textContent = data.main.pressure + ' hPa';
+
+    lastUpdated.textContent = 'Last data update: ' + formatTime(data.dt);
+    coordText.textContent = data.coord ? ('lat ' + data.coord.lat + ', lon ' + data.coord.lon) : '';
+
+    resultPanel.style.display = 'block';
+  }
+
+  searchForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var city = cityInput.value.trim();
+    if (!city){
+      showMessage('Type a city name first.', 'error');
+      return;
+    }
+    fetchWeather(city);
+  });
+})();
+</script>
+
+</body>
+</html>
