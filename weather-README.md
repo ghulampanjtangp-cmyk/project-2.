@@ -2,8 +2,7 @@
 
 A single-page weather app that looks up current conditions for any city using the [OpenWeatherMap Current Weather Data API](https://openweathermap.org/current). Built as one self-contained `index.html` — no build step, no framework, no dependencies beyond a Google Fonts link.
 
-**Live demo:** _add your GitHub Pages link here after deploying (see "Deploying" below)_
-**Screenshots:** _add screenshots here — see "Taking screenshots" below_
+https://ghulampanjtangp-cmyk.github.io/project-1/
 
 ## What's included
 
